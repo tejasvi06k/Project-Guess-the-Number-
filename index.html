@@ -186,30 +186,7 @@
   <p class="note" id="note">Press Enter when you're done.</p>
   <div id="output" role="status" aria-live="polite"></div>
 
-  <details class="src">
-    <summary>The original Java this came from</summary>
-<pre>import java.util.Scanner;
-class Demojava{
-	public static void main(String[] arg){
-		Scanner sc =new Scanner(System.in);
-		int Num=(int)(Math.random()*100);
-		int num;
-		do {
-			System.out.print("Enter a number(1-100): ");
-			num = sc.nextInt();
-			if (num &gt; Num)
-				System.out.println("The Number is heighter than expected.");
-			else if (num &lt;Num)
-				System.out.println("The Number if Lower tha Expected.");
-			else {
-				System.out.println("Yes , WOOHOO THAT'S THE NUMBER");
-				break;}
-		}while(num &gt;=0);
-		
-		System.out.println("My Number Was: "+num);
-	}
-}</pre>
-  </details>
+  
 </main>
 
 <script>
