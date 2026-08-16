@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guess My Number</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Caveat:wght@600&family=JetBrains+Mono:wght@400;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#FBFAF6; --ink:#16161A; --red:#C8102E; --rule:#A9BFD6;
+    --high:#E2572B; --low:#2F6FB0; --win:#1B9E57;
+    --backdrop:#2E3A33; --backdrop-2:#3A4840; --muted:#6B7280;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{
+    min-height:100dvh; display:grid; place-items:center; padding:24px 20px 56px;
+    font-family:'Space Grotesk',system-ui,sans-serif; color:var(--ink);
+    background:radial-gradient(120% 90% at 50% 0%, var(--backdrop-2) 0%, var(--backdrop) 70%);
+  }
+  body::before{
+    content:""; position:fixed; inset:0; pointer-events:none; opacity:.35;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='.28'/%3E%3C/svg%3E");
+  }
+  .stage{ position:relative; z-index:1; width:100%; max-width:460px; }
+
+  /* ---------------- name badge ---------------- */
+  .badge{
+    background:var(--cream); border-radius:14px; overflow:hidden; transform:rotate(-1.2deg);
+    box-shadow:0 24px 50px -18px rgba(0,0,0,.55);
+    transition:transform .45s cubic-bezier(.2,.8,.2,1), opacity .4s ease, margin .45s ease;
+  }
+  .badge.tucked{ transform:rotate(-1.2deg) scale(.6); opacity:0; margin-bottom:-300px; pointer-events:none; }
+  .band{ background:var(--red); color:#fff; padding:20px 24px 16px; text-align:center; }
+  .band h1{ font-family:'Anton',sans-serif; font-size:clamp(46px,13vw,68px); line-height:.86; text-transform:uppercase; }
+  .band p{ margin-top:8px; font-size:11px; font-weight:500; letter-spacing:.34em; text-transform:uppercase; opacity:.9; }
+  .field{
+    padding:34px 24px 26px;
+    background:repeating-linear-gradient(to bottom, transparent 0 43px, var(--rule) 43px 44px);
+    background-position:0 14px;
+  }
+  #nameInput{
+    width:100%; border:0; background:transparent; font-family:'Caveat',cursive;
+    font-size:clamp(38px,10vw,52px); line-height:1.1; color:#1E3A6E; text-align:center; padding:6px 0 10px;
+  }
+  #nameInput::placeholder{ color:#C3C9D2; }
+  #nameInput:focus{ outline:none; }
+  #nameInput:focus-visible{ outline:2px solid var(--red); outline-offset:6px; border-radius:4px; }
+  .foot{ display:flex; align-items:center; gap:14px; padding:0 24px 24px; }
+  .count{ font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }
+  button{
+    font-family:inherit; font-weight:700; letter-spacing:.14em; text-transform:uppercase; font-size:13px;
+    color:#fff; background:var(--ink); border:0; border-radius:999px; padding:14px 26px; cursor:pointer;
+    transition:background .18s ease, transform .12s ease;
+  }
+  .foot button{ margin-left:auto; }
+  button:hover{ background:var(--red); }
+  button:active{ transform:translateY(1px); }
+  button:focus-visible{ outline:3px solid var(--win); outline-offset:3px; }
+  button[disabled]{ opacity:.32; cursor:not-allowed; background:var(--ink); }
+  .note{ margin-top:22px; text-align:center; font-size:12px; color:rgba(255,255,255,.5); }
+  .note.gone{ display:none; }
+
+  /* ---------------- game ---------------- */
+  #output:empty{ display:none; }
+  .game{
+    background:var(--cream); border-radius:18px; overflow:hidden;
+    box-shadow:0 26px 54px -20px rgba(0,0,0,.6);
+  }
+  .scorebar{
+    display:flex; align-items:baseline; gap:10px; padding:14px 20px;
+    background:var(--ink); color:#fff;
+  }
+  .scorebar .who{ font-weight:700; font-size:14px; letter-spacing:.01em; }
+  .scorebar .tries{
+    margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:12px;
+    letter-spacing:.1em; color:rgba(255,255,255,.6);
+  }
+  .scorebar .tries b{ color:#fff; font-size:15px; }
+
+  /* the big reaction panel */
+  .verdict{
+    padding:34px 24px 28px; text-align:center; color:#fff;
+    background:var(--ink); transition:background .3s ease;
+  }
+  .verdict.is-high{ background:var(--high); }
+  .verdict.is-low{  background:var(--low); }
+  .verdict.is-win{  background:var(--win); }
+  .verdict .arrow{
+    font-size:38px; line-height:1; display:block; margin-bottom:6px;
+  }
+  .verdict h2{
+    font-family:'Anton',sans-serif; font-size:clamp(34px,9.5vw,46px);
+    line-height:.95; text-transform:uppercase; letter-spacing:.01em;
+  }
+  .verdict p{ margin-top:10px; font-size:14px; opacity:.92; }
+  .nudge{ animation:nudge .32s ease; }
+  @keyframes nudge{ 0%,100%{transform:translateY(0)} 40%{transform:translateY(-7px)} }
+
+  /* narrowing range */
+  .rangewrap{ padding:22px 24px 6px; }
+  .rangelabel{
+    display:flex; justify-content:space-between; font-family:'JetBrains Mono',monospace;
+    font-size:11px; letter-spacing:.08em; color:var(--muted); margin-bottom:8px;
+  }
+  .track{
+    position:relative; height:14px; border-radius:8px; background:#E4E2DA; overflow:hidden;
+  }
+  .live{
+    position:absolute; top:0; bottom:0; background:var(--ink); border-radius:8px;
+    transition:left .4s cubic-bezier(.2,.8,.2,1), width .4s cubic-bezier(.2,.8,.2,1);
+  }
+  .track .tick{
+    position:absolute; top:-4px; width:2px; height:22px; background:rgba(0,0,0,.34);
+  }
+  .rangecap{
+    text-align:center; margin-top:11px; font-size:13px; color:var(--muted);
+  }
+  .rangecap b{ color:var(--ink); font-family:'JetBrains Mono',monospace; }
+
+  /* input row */
+  .play{ display:flex; gap:10px; padding:18px 24px 20px; }
+  #guess{
+    flex:1; min-width:0; border:2px solid #DEDCD3; border-radius:12px; background:#fff;
+    font-family:'Anton',sans-serif; font-size:28px; letter-spacing:.04em; color:var(--ink);
+    text-align:center; padding:12px 8px;
+  }
+  #guess::placeholder{ color:#CFCDC4; letter-spacing:.02em; }
+  #guess:focus{ outline:none; border-color:var(--ink); }
+  #guess::-webkit-outer-spin-button,#guess::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+  #go{ padding:14px 22px; }
+
+  .history{
+    display:flex; flex-wrap:wrap; gap:6px; padding:0 24px 20px; min-height:0;
+  }
+  .history:empty{ padding:0; }
+  .chip{
+    font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700;
+    padding:5px 10px; border-radius:999px; color:#fff;
+  }
+  .chip.h{ background:var(--high); } .chip.l{ background:var(--low); } .chip.w{ background:var(--win); }
+
+  .again{ padding:0 24px 24px; }
+  .again button{ width:100%; background:var(--win); }
+  .again button:hover{ background:var(--ink); }
+  .play.done, .rangewrap.done{ display:none; }
+
+  /* confetti */
+  .confetti{ position:fixed; inset:0; pointer-events:none; overflow:hidden; z-index:5; }
+  .confetti i{
+    position:absolute; top:-14px; width:9px; height:14px; border-radius:2px;
+    animation:fall linear forwards;
+  }
+  @keyframes fall{ to{ transform:translateY(105vh) rotate(680deg); opacity:.15; } }
+
+  details.src{ margin-top:16px; border:1px solid rgba(255,255,255,.14); border-radius:12px; background:rgba(255,255,255,.05); }
+  details.src summary{
+    cursor:pointer; list-style:none; padding:13px 16px; font-size:11px; font-weight:700;
+    letter-spacing:.16em; text-transform:uppercase; color:rgba(255,255,255,.7);
+  }
+  details.src summary::-webkit-details-marker{ display:none; }
+  details.src summary:hover{ color:#fff; }
+  details.src pre{
+    margin:0; padding:0 16px 18px; overflow-x:auto;
+    font-family:'JetBrains Mono',monospace; font-size:12.5px; line-height:1.65; color:#CBD5C0;
+  }
+  @media (prefers-reduced-motion:reduce){ *{ transition:none !important; animation:none !important; } }
+</style>
+</head>
+<body>
+
+<main class="stage">
+  <div class="badge" id="badge">
+    <div class="band"><h1>Hello</h1><p>my name is</p></div>
+    <div class="field">
+      <input type="text" id="nameInput" placeholder="write here" autocomplete="name"
+             autocapitalize="words" spellcheck="false" maxlength="40" aria-label="Your name">
+    </div>
+    <div class="foot">
+      <span class="count" id="count">0 / 40</span>
+      <button id="submitBtn" disabled>Let's play</button>
+    </div>
+  </div>
+
+  <p class="note" id="note">Press Enter when you're done.</p>
+  <div id="output" role="status" aria-live="polite"></div>
+
+  <details class="src">
+    <summary>The original Java this came from</summary>
+<pre>import java.util.Scanner;
+class Demojava{
+	public static void main(String[] arg){
+		Scanner sc =new Scanner(System.in);
+		int Num=(int)(Math.random()*100);
+		int num;
+		do {
+			System.out.print("Enter a number(1-100): ");
+			num = sc.nextInt();
+			if (num &gt; Num)
+				System.out.println("The Number is heighter than expected.");
+			else if (num &lt;Num)
+				System.out.println("The Number if Lower tha Expected.");
+			else {
+				System.out.println("Yes , WOOHOO THAT'S THE NUMBER");
+				break;}
+		}while(num &gt;=0);
+		
+		System.out.println("My Number Was: "+num);
+	}
+}</pre>
+  </details>
+</main>
+
+<script>
+const nameInput = document.getElementById('nameInput');
+const submitBtn = document.getElementById('submitBtn');
+const count     = document.getElementById('count');
+const badge     = document.getElementById('badge');
+const note      = document.getElementById('note');
+const output    = document.getElementById('output');
+
+nameInput.addEventListener('input', () => {
+  count.textContent = nameInput.value.length + ' / 40';
+  submitBtn.disabled = nameInput.value.trim().length === 0;
+});
+nameInput.addEventListener('keydown', e => { if (e.key==='Enter' && !submitBtn.disabled) start(); });
+submitBtn.addEventListener('click', start);
+nameInput.focus();
+
+function start(){
+  const name = nameInput.value.trim();
+  if (!name) return;
+  badge.classList.add('tucked');
+  note.classList.add('gone');
+  handleName(name);
+}
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* Same game as Demojava.java: secret is 0-99, higher/lower feedback,
+   a negative guess walks away. Only the wording is friendlier. */
+function handleName(name){
+  const Num = Math.floor(Math.random() * 100);
+  let tries = 0, lo = 0, hi = 99, over = false;
+
+  const teases = ['Way off. Try again.','Not even close.','Getting warmer.','Keep going.','You will find it.'];
+
+  output.innerHTML =
+    '<div class="game">' +
+      '<div class="scorebar"><span class="who">' + esc(name) + ' vs. the machine</span>' +
+        '<span class="tries">GUESSES <b id="tries">0</b></span></div>' +
+      '<div class="verdict" id="verdict">' +
+        '<span class="arrow">?</span>' +
+        '<h2>I picked a number</h2>' +
+        '<p>Somewhere from 0 to 99. Find it.</p>' +
+      '</div>' +
+      '<div class="rangewrap" id="rangewrap">' +
+        '<div class="rangelabel"><span>0</span><span>99</span></div>' +
+        '<div class="track" id="track"><div class="live" id="live" style="left:0;width:100%"></div></div>' +
+        '<p class="rangecap" id="rangecap">It is hiding between <b>0</b> and <b>99</b></p>' +
+      '</div>' +
+      '<div class="play" id="play">' +
+        '<input type="number" id="guess" placeholder="00" inputmode="numeric" aria-label="Your guess">' +
+        '<button id="go">Guess</button>' +
+      '</div>' +
+      '<div class="history" id="history"></div>' +
+      '<div class="again" id="again" hidden><button id="replay">Play again</button></div>' +
+    '</div>';
+
+  const verdict = document.getElementById('verdict'),
+        track   = document.getElementById('track'),
+        live    = document.getElementById('live'),
+        cap     = document.getElementById('rangecap'),
+        play    = document.getElementById('play'),
+        rw      = document.getElementById('rangewrap'),
+        guess   = document.getElementById('guess'),
+        go      = document.getElementById('go'),
+        hist    = document.getElementById('history'),
+        again   = document.getElementById('again'),
+        triesEl = document.getElementById('tries');
+
+  function react(cls, arrow, head, sub){
+    verdict.className = 'verdict ' + cls;
+    verdict.innerHTML = '<span class="arrow">' + arrow + '</span><h2>' + head + '</h2><p>' + sub + '</p>';
+    verdict.classList.remove('nudge'); void verdict.offsetWidth; verdict.classList.add('nudge');
+  }
+
+  function drawRange(){
+    live.style.left  = (lo / 100 * 100) + '%';
+    live.style.width = ((hi - lo + 1) / 100 * 100) + '%';
+    cap.innerHTML = 'It is hiding between <b>' + lo + '</b> and <b>' + hi + '</b>';
+  }
+
+  function mark(n){
+    if (n < 0 || n > 99) return;
+    const t = document.createElement('i');
+    t.className = 'tick'; t.style.left = 'calc(' + (n / 99 * 100) + '% - 1px)';
+    track.appendChild(t);
+  }
+
+  function chip(n, cls){
+    hist.insertAdjacentHTML('beforeend', '<span class="chip ' + cls + '">' + n + '</span>');
+  }
+
+  function round(){
+    if (over) return;
+    const raw = guess.value.trim();
+    if (!/^-?\d+$/.test(raw)) {
+      react('', '!', 'Numbers only', 'Type a whole number, then hit Guess.');
+      return;
+    }
+    const num = parseInt(raw, 10);
+    guess.value = '';
+    tries++; triesEl.textContent = tries;
+
+    if (num > Num){
+      chip(num, 'h'); mark(num);
+      if (num - 1 < hi) hi = Math.min(hi, num - 1);
+      drawRange();
+      react('is-high', '&darr;', 'Too high', teases[tries % teases.length] + ' Aim lower than ' + num + '.');
+    } else if (num < Num){
+      chip(num, 'l'); mark(num);
+      if (num + 1 > lo) lo = Math.max(lo, num + 1);
+      drawRange();
+      react('is-low', '&uarr;', 'Too low', teases[tries % teases.length] + ' Aim higher than ' + num + '.');
+    } else {
+      chip(num, 'w');
+      react('is-win', '&#9733;', 'Got it!', 'The number was ' + Num + '. You nailed it in ' + tries +
+            (tries === 1 ? ' guess.' : ' guesses.'));
+      return end();
+    }
+
+    if (num < 0){                       // the original's do-while exit
+      react('', '&#9099;', 'You walked away', 'My number was ' + Num + '. Coward.');
+      return end();
+    }
+    guess.focus();
+  }
+
+  function end(){
+    over = true;
+    play.classList.add('done'); rw.classList.add('done'); again.hidden = false;
+    if (verdict.classList.contains('is-win')) confetti();
+  }
+
+  go.addEventListener('click', round);
+  guess.addEventListener('keydown', e => { if (e.key === 'Enter') round(); });
+  document.getElementById('replay').addEventListener('click', () => handleName(name));
+  guess.focus();
+  drawRange();
+}
+
+function confetti(){
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const box = document.createElement('div');
+  box.className = 'confetti';
+  const colors = ['#C8102E','#E2572B','#1B9E57','#2F6FB0','#E8B33C'];
+  for (let i = 0; i < 40; i++){
+    const p = document.createElement('i');
+    p.style.left = Math.random() * 100 + 'vw';
+    p.style.background = colors[i % colors.length];
+    p.style.animationDuration = (1.6 + Math.random() * 1.4) + 's';
+    p.style.animationDelay = (Math.random() * .5) + 's';
+    box.appendChild(p);
+  }
+  document.body.appendChild(box);
+  setTimeout(() => box.remove(), 3600);
+}
+</script>
+</body>
+</html>
