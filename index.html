@@ -154,17 +154,6 @@
   }
   @keyframes fall{ to{ transform:translateY(105vh) rotate(680deg); opacity:.15; } }
 
-  details.src{ margin-top:16px; border:1px solid rgba(255,255,255,.14); border-radius:12px; background:rgba(255,255,255,.05); }
-  details.src summary{
-    cursor:pointer; list-style:none; padding:13px 16px; font-size:11px; font-weight:700;
-    letter-spacing:.16em; text-transform:uppercase; color:rgba(255,255,255,.7);
-  }
-  details.src summary::-webkit-details-marker{ display:none; }
-  details.src summary:hover{ color:#fff; }
-  details.src pre{
-    margin:0; padding:0 16px 18px; overflow-x:auto;
-    font-family:'JetBrains Mono',monospace; font-size:12.5px; line-height:1.65; color:#CBD5C0;
-  }
   @media (prefers-reduced-motion:reduce){ *{ transition:none !important; animation:none !important; } }
 </style>
 </head>
@@ -186,7 +175,6 @@
   <p class="note" id="note">Press Enter when you're done.</p>
   <div id="output" role="status" aria-live="polite"></div>
 
-  
 </main>
 
 <script>
